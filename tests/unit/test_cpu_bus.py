@@ -27,6 +27,21 @@ def _make_bus():
     return bus, dma
 
 
+def _make_bus_with_controllers():
+    """Build a CPUBus exposing controllers.  Returns (bus, dma, c1, c2)."""
+    image = RomParser.parse(bytes(build_nrom_ines()))
+    mapper = NROMMapper(image)
+    ppu_bus = PPUBus(mapper)
+    ppu = PPU(bus=ppu_bus, interrupts=InterruptLines())
+    apu = APU(interrupts=InterruptLines())
+    c1 = Controller()
+    c2 = Controller()
+    dma = OAMDMAState()
+    bus = CPUBus(ppu=ppu, apu=apu, mapper=mapper,
+                 controller1=c1, controller2=c2, oam_dma_state=dma)
+    return bus, dma, c1, c2
+
+
 def test_ram_read_write():
     """$0000-$07FF reads and writes correctly."""
     bus, _ = _make_bus()
@@ -60,7 +75,7 @@ def test_oam_dma_trigger():
     bus.write(0x4014, 0x02)
     assert dma.active is True
     assert dma.page == 0x02
-    assert dma.address == 0
+    # address field removed in Phase 5 simplification
 
 
 def test_mapper_range():
@@ -69,3 +84,46 @@ def test_mapper_range():
     val = bus.read(0x8000)
     # Should return whatever mapper returns (PRG ROM byte)
     assert 0 <= val <= 255
+
+
+# ======================================================================
+# Phase 5: Controller wiring
+# ======================================================================
+
+
+def test_controller1_read_from_4016():
+    """Strobe + read $4016 returns current controller 1 button."""
+    bus, _, c1, _ = _make_bus_with_controllers()
+    c1.set_buttons(0b0000_0001)  # A pressed
+    bus.write(0x4016, 1)          # strobe on
+    bus.write(0x4016, 0)          # strobe off
+    assert bus.read(0x4016) == 1   # bit 0 = A
+
+
+def test_controller2_read_from_4017():
+    """Strobe + read $4017 returns serial controller 2 state."""
+    bus, _, _, c2 = _make_bus_with_controllers()
+    c2.set_buttons(0b0000_0011)  # A + B pressed → bit 0 = 1
+    bus.write(0x4016, 1)          # strobe on (shared strobe line)
+    bus.write(0x4016, 0)          # strobe off
+
+    # First read: bit 0 (= 1, A)
+    assert bus.read(0x4017) == 1
+    # Second read: bit 1 (= 1, B)
+    assert bus.read(0x4017) == 1
+
+
+def test_controller_strobe_write_reaches_both():
+    """Writing $4016 strobe loads shift registers for both controllers."""
+    bus, _, c1, c2 = _make_bus_with_controllers()
+    c1.set_buttons(0b0000_0001)  # controller 1: only A (bit 0 = 1)
+    c2.set_buttons(0b0000_0010)  # controller 2: only B (bit 0 = 0, bit 1 = 1)
+
+    bus.write(0x4016, 1)   # strobe on: latches buttons into shift register
+    bus.write(0x4016, 0)   # strobe off
+
+    # First read of each controller reads bit 0
+    assert bus.read(0x4016) == 1  # c1 bit 0 = A pressed → 1
+    assert bus.read(0x4017) == 0  # c2 bit 0 = A not pressed → 0
+    # Next read: bit 1 shifted to bit 0
+    assert bus.read(0x4017) == 1  # c2 bit 1 = B pressed → 1

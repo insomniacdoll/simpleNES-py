@@ -1,18 +1,18 @@
-"""PPU (Ricoh 2C02). Phase 4: background rendering pipeline."""
+"""PPU (Ricoh 2C02). Phase 5: background + sprite rendering pipeline."""
 
 
 class PPU:
-    """PPU with register layer + per-dot background rendering pipeline.
+    """PPU with register layer, per-dot bg + sprite rendering pipeline.
 
     Registers:
-        PPUCTRL   ($2000 W) — NMI enable, name table, increment, sprite/table select
+        PPUCTRL   ($2000 W) — NMI enable, name table, increment, sprite size/table
         PPUMASK   ($2001 W) — rendering mask
-        PPUSTATUS ($2002 R) — VBlank, sprite 0 hit, overflow (read clears VBlank + toggle)
+        PPUSTATUS ($2002 R) — VBlank, sprite 0 hit, overflow
         OAMADDR   ($2003 W) — OAM address pointer
         OAMDATA   ($2004 RW) — OAM data
         PPUSCROLL ($2005 W) — scroll via two writes
-        PPUADDR   ($2006 W) — VRAM address via two writes (second copies t→v)
-        PPUDATA   ($2007 RW) — VRAM data with read buffer, auto-increment v
+        PPUADDR   ($2006 W) — VRAM address
+        PPUDATA   ($2007 RW) — VRAM data
     """
 
     __slots__ = (
@@ -23,19 +23,15 @@ class PPU:
         "scanline", "dot", "frame", "odd_frame",
         "framebuffer", "oam",
         "_nmi_prev",
-        # --- Phase 4: background rendering pipeline ---
-        "_bg_shift_lo",
-        "_bg_shift_hi",
-        "_bg_attr_lo",
-        "_bg_attr_hi",
-        # Tile fetch latches
-        "_nt_latch",
-        "_at_latch",
-        "_pt_lo_latch",
-        "_pt_hi_latch",
-        # Rendering control
-        "_rendering",
-        "_bg_enabled",
+        # Phase 4
+        "_bg_shift_lo", "_bg_shift_hi",
+        "_bg_attr_lo", "_bg_attr_hi",
+        "_nt_latch", "_at_latch",
+        "_pt_lo_latch", "_pt_hi_latch",
+        "_rendering", "_bg_enabled",
+        # Phase 5
+        "_secondary_oam", "_sprite_count",
+        "_sprite_zero_possible", "_last_bg_pixel",
     )
 
     def __init__(self, bus, interrupts, *, region=None):
@@ -57,7 +53,7 @@ class PPU:
         self.framebuffer = bytearray(256 * 240)
         self.oam = bytearray(256)
         self._nmi_prev = False
-        # Phase 4 init
+        # Phase 4
         self._bg_shift_lo = 0
         self._bg_shift_hi = 0
         self._bg_attr_lo = 0
@@ -68,13 +64,17 @@ class PPU:
         self._pt_hi_latch = 0
         self._rendering = False
         self._bg_enabled = False
+        # Phase 5
+        self._secondary_oam = bytearray(32)
+        self._sprite_count = 0
+        self._sprite_zero_possible = False
+        self._last_bg_pixel = 0
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
     def reset(self) -> None:
-        """Reset PPU to power-on state."""
         self.control = 0
         self.mask = 0
         self.status = 0
@@ -89,7 +89,6 @@ class PPU:
         self.frame = 0
         self.odd_frame = False
         self._nmi_prev = False
-        # Phase 4 reset
         self._bg_shift_lo = 0
         self._bg_shift_hi = 0
         self._bg_attr_lo = 0
@@ -100,13 +99,16 @@ class PPU:
         self._pt_hi_latch = 0
         self._rendering = False
         self._bg_enabled = False
+        self._secondary_oam = bytearray(32)
+        self._sprite_count = 0
+        self._sprite_zero_possible = False
+        self._last_bg_pixel = 0
 
     def read_register(self, address: int) -> int:
-        """Read PPU register (called by CPUBus at $2000-$2007)."""
         reg = address & 7
         if reg == 2:  # PPUSTATUS
             result = self.status & 0xE0
-            self.status &= 0x7F           # clear VBlank
+            self.status &= 0x7F
             self.write_toggle = False
             self._update_nmi()
             return result
@@ -114,47 +116,48 @@ class PPU:
             return self.oam[self.oam_address]
         elif reg == 7:  # PPUDATA
             return self._read_ppudata()
-        return 0  # write-only registers return open bus (0 for now)
+        return 0
 
     def write_register(self, address: int, value: int) -> None:
-        """Write PPU register (called by CPUBus at $2000-$2007)."""
         reg = address & 7
         value &= 0xFF
-        if reg == 0:  # PPUCTRL
+        if reg == 0:
             self._write_ppuctrl(value)
-        elif reg == 1:  # PPUMASK
+        elif reg == 1:
             self.mask = value & 0xFF
             self._update_rendering_flags()
-        elif reg == 3:  # OAMADDR
+        elif reg == 3:
             self.oam_address = value & 0xFF
-        elif reg == 4:  # OAMDATA
+        elif reg == 4:
             self.oam[self.oam_address] = value & 0xFF
             self.oam_address = (self.oam_address + 1) & 0xFF
-        elif reg == 5:  # PPUSCROLL
+        elif reg == 5:
             self._write_ppuscroll(value)
-        elif reg == 6:  # PPUADDR
+        elif reg == 6:
             self._write_ppuaddr(value)
-        elif reg == 7:  # PPUDATA
+        elif reg == 7:
             self._write_ppudata(value)
 
     def clock(self) -> None:
-        """Advance one PPU dot. Phase 4: includes background rendering pipeline."""
-        # Step 0: update rendering flags
+        """Advance one PPU dot.  Phase 5: bg + sprite rendering."""
         self._update_rendering_flags()
 
-        # Step 1: visible framebuffer output (always, even when rendering off)
+        # Step 1: visible framebuffer output
         if self.scanline <= 239 and 1 <= self.dot <= 256:
             if self._rendering and self._bg_enabled:
                 self._output_background_pixel(self.dot - 1)
             else:
                 self._output_backdrop_pixel(self.dot - 1)
+            # Phase 5: overlay sprites
+            if self._rendering and (self.mask & 0x10):
+                self._composite_sprite_pixel(self.dot - 1)
 
-        # Step 2: background pipeline — shift + fetch + scroll updates
+        # Step 2: background pipeline
         if self._rendering:
             if self.scanline <= 239 or self.scanline == 261:
                 self._tick_background()
 
-        # Step 3: odd frame skip (jump from pre-render dot 339 to visible dot 0)
+        # Step 3: odd frame skip
         if (self.scanline == 261 and self.dot == 339
                 and self.odd_frame and self._rendering):
             self.dot = 0
@@ -163,7 +166,7 @@ class PPU:
             self.odd_frame = not self.odd_frame
             return
 
-        # Step 4: advance dot/scanline/frame counters
+        # Step 4: advance counters
         self.dot += 1
         if self.dot >= 341:
             self.dot = 0
@@ -186,11 +189,9 @@ class PPU:
     # ------------------------------------------------------------------
 
     def _nmi_output(self) -> bool:
-        """Internal NMI signal: true when VBlank and NMI-enable are both set."""
         return bool((self.control & 0x80) and (self.status & 0x80))
 
     def _update_nmi(self) -> None:
-        """On rising edge of NMI output, set nmi_pending."""
         current = self._nmi_output()
         if current and not self._nmi_prev:
             self.interrupts.nmi_pending = True
@@ -227,13 +228,11 @@ class PPU:
     # ------------------------------------------------------------------
 
     def _increment(self) -> int:
-        """VRAM address increment: 1 (across) or 32 (down)."""
         return 32 if (self.control & 0x04) else 1
 
     def _read_ppudata(self) -> int:
         addr = self.v & 0x3FFF
         self.v = (self.v + self._increment()) & 0x7FFF
-
         if addr < 0x3F00:
             result = self.read_buffer
             self.read_buffer = self.bus.read(addr)
@@ -253,8 +252,7 @@ class PPU:
     # ------------------------------------------------------------------
 
     def _update_rendering_flags(self) -> None:
-        """Update _rendering / _bg_enabled from mask register."""
-        self._rendering = (self.mask & 0x18) != 0  # bg (bit 3) or sprites (bit 4)
+        self._rendering = (self.mask & 0x18) != 0
         self._bg_enabled = (self.mask & 0x08) != 0
 
     # ------------------------------------------------------------------
@@ -262,18 +260,15 @@ class PPU:
     # ------------------------------------------------------------------
 
     def _tick_background(self) -> None:
-        """Shift + fetch + scroll updates.  Pixel output is in clock() Step 1."""
         active = (1 <= self.dot <= 256) or (321 <= self.dot <= 336)
-
         if active:
             self._shift_registers()
             self._fetch_and_shift()
-
         if self.dot == 256:
             self._increment_y()
         if self.dot == 257:
+            self._evaluate_sprites()     # Phase 5: sprite eval for next line
             self._reload_horizontal()
-
         if self.scanline == 261 and 280 <= self.dot <= 304:
             self._reload_vertical()
 
@@ -282,7 +277,6 @@ class PPU:
     # ------------------------------------------------------------------
 
     def _shift_registers(self) -> None:
-        """Left-shift all four 16-bit background shifters by 1."""
         self._bg_shift_lo = (self._bg_shift_lo << 1) & 0xFFFF
         self._bg_shift_hi = (self._bg_shift_hi << 1) & 0xFFFF
         self._bg_attr_lo = (self._bg_attr_lo << 1) & 0xFFFF
@@ -293,9 +287,7 @@ class PPU:
     # ------------------------------------------------------------------
 
     def _fetch_and_shift(self) -> None:
-        """8-dot tile fetch: NT→AT→PT_lo→PT_hi, load at phase 0."""
         phase = self.dot & 7
-
         if phase == 0:
             self._load_shift_registers()
             self._increment_x()
@@ -307,54 +299,44 @@ class PPU:
             self._pt_lo_latch = self.bus.read(self._pt_lo_address())
         elif phase == 7:
             self._pt_hi_latch = self.bus.read(self._pt_hi_address())
-        # phases 2, 4, 6: idle
 
     # ------------------------------------------------------------------
     # Phase 4: Tile fetch addresses
     # ------------------------------------------------------------------
 
     def _nt_address(self) -> int:
-        """Nametable address: $2000 | (v & 0x0FFF)."""
         return 0x2000 | (self.v & 0x0FFF)
 
     def _at_address(self) -> int:
-        """Attribute table address within current nametable."""
         return (0x23C0 | (self.v & 0x0C00)
                 | ((self.v >> 4) & 0x38) | ((self.v >> 2) & 0x07))
 
     def _pt_lo_address(self) -> int:
-        """Pattern table low byte: base | (nt_latch << 4) | fine_y."""
         base = 0x1000 if (self.control & 0x10) else 0x0000
         fine_y = (self.v >> 12) & 0x07
         return base | (self._nt_latch << 4) | fine_y
 
     def _pt_hi_address(self) -> int:
-        """Pattern table high byte = low + 8."""
         return self._pt_lo_address() | 8
 
     def _load_shift_registers(self) -> None:
-        """Load latches into shifter low byte + attribute bits."""
         self._bg_shift_lo = (self._bg_shift_lo & 0xFF00) | self._pt_lo_latch
         self._bg_shift_hi = (self._bg_shift_hi & 0xFF00) | self._pt_hi_latch
-
         coarse_x = self.v & 0x1F
         coarse_y = (self.v >> 5) & 0x1F
         shift = (coarse_x & 2) | ((coarse_y & 2) << 1)
         pal = (self._at_latch >> shift) & 3
-
         attr_lo = 0xFF if (pal & 1) else 0x00
         attr_hi = 0xFF if (pal & 2) else 0x00
         self._bg_attr_lo = (self._bg_attr_lo & 0xFF00) | attr_lo
         self._bg_attr_hi = (self._bg_attr_hi & 0xFF00) | attr_hi
 
     # ------------------------------------------------------------------
-    # Phase 4: Pixel output
+    # Phase 4/5: Pixel output
     # ------------------------------------------------------------------
 
     def _output_background_pixel(self, fb_x: int) -> None:
-        """Output one background pixel using fine_x-muxed shifters."""
         mux = 0x8000 >> self.fine_x
-
         pixel = (
             ((1 if (self._bg_shift_hi & mux) else 0) << 1)
             | (1 if (self._bg_shift_lo & mux) else 0)
@@ -364,28 +346,27 @@ class PPU:
             | (1 if (self._bg_attr_lo & mux) else 0)
         )
 
-        if fb_x < 8 and not (self.mask & 0x02):
-            # Left 8-pixel clipping → backdrop
+        bg_left_on = fb_x >= 8 or (self.mask & 0x02)
+        if not bg_left_on or pixel == 0:
             palette_idx = self.bus.read(0x3F00) & 0x3F
-        elif pixel == 0:
-            palette_idx = self.bus.read(0x3F00) & 0x3F
+            self._last_bg_pixel = 0
         else:
             palette_idx = self.bus.read(0x3F00 | ((attr << 2) | pixel)) & 0x3F
+            self._last_bg_pixel = pixel
 
         self.framebuffer[self.scanline * 256 + fb_x] = palette_idx
 
     def _output_backdrop_pixel(self, fb_x: int) -> None:
-        """Backdrop color — used when bg disabled or rendering off."""
         self.framebuffer[self.scanline * 256 + fb_x] = (
             self.bus.read(0x3F00) & 0x3F
         )
+        self._last_bg_pixel = 0
 
     # ------------------------------------------------------------------
-    # Phase 4: Scroll updates during rendering
+    # Phase 4: Scroll updates
     # ------------------------------------------------------------------
 
     def _increment_x(self) -> None:
-        """Increment coarse X; on wrap toggle horizontal nametable."""
         if (self.v & 0x001F) == 31:
             self.v &= ~0x001F
             self.v ^= 0x0400
@@ -393,12 +374,11 @@ class PPU:
             self.v += 1
 
     def _increment_y(self) -> None:
-        """Increment fine Y; on wrap increment coarse Y; handle nt toggle."""
         fine_y = (self.v >> 12) & 7
         if fine_y < 7:
             self.v += 0x1000
         else:
-            self.v &= ~0x7000  # fine_y = 0
+            self.v &= ~0x7000
             coarse_y = (self.v >> 5) & 0x1F
             if coarse_y == 29:
                 self.v &= ~(0x1F << 5)
@@ -409,9 +389,121 @@ class PPU:
                 self.v += 0x0020
 
     def _reload_horizontal(self) -> None:
-        """Copy horizontal bits (coarse_x + horizontal nt) from t to v."""
         self.v = (self.v & ~0x041F) | (self.t & 0x041F)
 
     def _reload_vertical(self) -> None:
-        """Copy vertical bits (fine_y + coarse_y + vertical nt) from t to v."""
         self.v = (self.v & ~0x7BE0) | (self.t & 0x7BE0)
+
+    # ------------------------------------------------------------------
+    # Phase 5: Sprite evaluation (dot 257)
+    # ------------------------------------------------------------------
+
+    def _evaluate_sprites(self) -> None:
+        next_sl = self.scanline + 1 if self.scanline < 261 else 0
+        if next_sl >= 240:
+            self._sprite_count = 0
+            self._sprite_zero_possible = False
+            return
+
+        self._secondary_oam = bytearray(32)
+        self._sprite_count = 0
+        self._sprite_zero_possible = False
+
+        height = 16 if (self.control & 0x20) else 8
+        for n in range(64):
+            sprite_y = self.oam[n * 4]
+            row = next_sl - (sprite_y + 1)
+            if 0 <= row < height:
+                if n == 0:
+                    self._sprite_zero_possible = True
+                if self._sprite_count < 8:
+                    idx = self._sprite_count * 4
+                    self._secondary_oam[idx:idx + 4] = self.oam[n * 4:n * 4 + 4]
+                    self._sprite_count += 1
+                else:
+                    self.status |= 0x20  # sprite overflow
+                    break
+
+    # ------------------------------------------------------------------
+    # Phase 5: Sprite pixel fetch
+    # ------------------------------------------------------------------
+
+    def _fetch_sprite_pixel(self, scanline: int, sprite_y: int,
+                            tile_idx: int, attr: int, column: int) -> int:
+        height = 16 if (self.control & 0x20) else 8
+
+        row = scanline - (sprite_y + 1)
+        if row < 0 or row >= height:
+            return 0
+
+        if attr & 0x80:  # vertical flip
+            row = (height - 1) - row
+
+        if height == 16:
+            table = 0x1000 if (tile_idx & 1) else 0x0000
+            if row < 8:
+                tile = tile_idx & 0xFE
+            else:
+                tile = (tile_idx & 0xFE) | 1
+                row -= 8
+        else:
+            table = 0x1000 if (self.control & 0x08) else 0x0000
+            tile = tile_idx
+
+        addr = table | (tile << 4) | row
+        pt_lo = self.bus.read(addr)
+        pt_hi = self.bus.read(addr | 8)
+
+        bit = 7 - column
+        return ((pt_hi >> bit) & 1) << 1 | ((pt_lo >> bit) & 1)
+
+    # ------------------------------------------------------------------
+    # Phase 5: Sprite compositing
+    # ------------------------------------------------------------------
+
+    def _composite_sprite_pixel(self, fb_x: int) -> None:
+        if fb_x < 8 and not (self.mask & 0x04):
+            return
+
+        for n in range(self._sprite_count):
+            base = n * 4
+            sprite_y = self._secondary_oam[base]
+            tile_idx = self._secondary_oam[base + 1]
+            attr = self._secondary_oam[base + 2]
+            sprite_x = self._secondary_oam[base + 3]
+
+            offset = fb_x - sprite_x
+            if offset < 0 or offset >= 8:
+                continue
+
+            column = offset
+            if attr & 0x40:  # horizontal flip
+                column = 7 - offset
+
+            pixel = self._fetch_sprite_pixel(
+                self.scanline, sprite_y, tile_idx, attr, column
+            )
+            if pixel == 0:
+                continue
+
+            bg_opaque = self._last_bg_pixel != 0
+            behind_bg = bool(attr & 0x20)
+
+            # Sprite 0 hit — BEFORE priority return
+            if n == 0 and self._sprite_zero_possible:
+                if pixel != 0 and bg_opaque:
+                    if fb_x != 255:
+                        left_ok = fb_x >= 8 or (
+                            (self.mask & 0x02) and (self.mask & 0x04)
+                        )
+                        if left_ok:
+                            self.status |= 0x40
+
+            if behind_bg and bg_opaque:
+                return
+
+            palette_idx = self.bus.read(
+                0x3F10 | ((attr & 3) << 2) | pixel
+            ) & 0x3F
+            self.framebuffer[self.scanline * 256 + fb_x] = palette_idx
+            return

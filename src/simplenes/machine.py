@@ -59,6 +59,8 @@ class NESMachine:
         self._cpu = CPU(bus=self._cpu_bus, interrupts=self._interrupts)
         self._scheduler = Scheduler(
             cpu=self._cpu, ppu=self._ppu, apu=self._apu, timing=NTSC_TIMING,
+            oam_dma_state=self._oam_dma,
+            cpu_bus=self._cpu_bus,
         )
 
     def reset(self) -> None:
