@@ -20,6 +20,9 @@ dev = [
     "pytest>=8",
     "ruff>=0.6",
 ]
+frontend = [
+    "pygame>=2",
+]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

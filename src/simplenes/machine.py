@@ -63,11 +63,14 @@ class NESMachine:
             cpu_bus=self._cpu_bus,
         )
 
+        self.reset()
+
     def reset(self) -> None:
         """Reset all components to power-on state."""
-        self._cpu.reset()
         self._ppu.reset()
+        self._apu.reset()
         self._oam_dma.reset()
+        self._cpu.reset()
 
     def step_instruction(self) -> int:
         """Execute one complete CPU instruction. Returns CPU cycles consumed."""
@@ -94,3 +97,12 @@ class NESMachine:
     def framebuffer(self) -> memoryview:
         """Get the PPU framebuffer as a memoryview (256x240 palette indices)."""
         return memoryview(self._ppu.framebuffer)
+
+    @property
+    def audio_sample_rate(self) -> int:
+        """Audio output sample rate in Hz (fixed: 44100)."""
+        return 44_100
+
+    def read_audio_samples(self, max_count: int = 4096) -> list[float]:
+        """Read up to max_count mono float samples [0.0, 1.0] from the APU."""
+        return self._apu.read_samples(max_count)

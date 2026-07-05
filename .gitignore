@@ -1,3 +1,5 @@
+roms
+.DS_Store
 .env
 .env.*
 docker-compose.override.yml
