@@ -9,6 +9,10 @@ from simplenes.bus.cpu_bus import CPUBus
 from simplenes.bus.ppu_bus import PPUBus
 from simplenes.cartridge.image import Mirroring
 from simplenes.cartridge.mappers.mapper000_nrom import NROMMapper
+from simplenes.cartridge.mappers.mapper002_uxrom import UxROMMapper
+from simplenes.cartridge.mappers.mapper003_cnrom import CNROMMapper
+from simplenes.cartridge.mappers.mapper001_mmc1 import MMC1Mapper
+from simplenes.cartridge.mappers.mapper004_mmc3 import MMC3Mapper
 from simplenes.cpu.cpu import CPU
 from simplenes.dma.oam_dma import OAMDMAState
 from simplenes.errors import InvalidRomError, UnsupportedMapperError
@@ -34,16 +38,13 @@ class NESMachine:
                 f"Only NTSC is supported in Phase 1, got {region}"
             )
 
-        if cartridge.mapper_id != 0:
-            raise UnsupportedMapperError(cartridge.mapper_id)
-
         if cartridge.mirroring == Mirroring.FOUR_SCREEN:
             raise InvalidRomError(
                 "Four-screen mirroring is not supported in Phase 1"
             )
 
         self._interrupts = InterruptLines()
-        self._mapper = NROMMapper(cartridge)
+        self._mapper = self._create_mapper(cartridge)
         self._ppu_bus = PPUBus(self._mapper)
         self._ppu = PPU(bus=self._ppu_bus, interrupts=self._interrupts)
         self._apu = APU(interrupts=self._interrupts)
@@ -71,6 +72,20 @@ class NESMachine:
         self._apu.reset()
         self._oam_dma.reset()
         self._cpu.reset()
+
+    def _create_mapper(self, cartridge):
+        """Private factory: create the correct Mapper for the cartridge."""
+        if cartridge.mapper_id == 0:
+            return NROMMapper(cartridge)
+        if cartridge.mapper_id == 1:
+            return MMC1Mapper(cartridge)
+        if cartridge.mapper_id == 2:
+            return UxROMMapper(cartridge)
+        if cartridge.mapper_id == 3:
+            return CNROMMapper(cartridge)
+        if cartridge.mapper_id == 4:
+            return MMC3Mapper(cartridge, interrupts=self._interrupts)
+        raise UnsupportedMapperError(cartridge.mapper_id)
 
     def step_instruction(self) -> int:
         """Execute one complete CPU instruction. Returns CPU cycles consumed."""

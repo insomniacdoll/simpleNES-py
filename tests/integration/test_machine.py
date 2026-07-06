@@ -24,13 +24,13 @@ def test_create_machine_invalid_rom():
         NESMachine(image)
 
 
-def test_create_machine_mapper_not_zero():
-    """mapper_id != 0 raises UnsupportedMapperError."""
-    rom = build_nrom_ines(mapper_id=3)
+def test_create_machine_unsupported_mapper():
+    """Unsupported mapper_id raises UnsupportedMapperError."""
+    rom = build_nrom_ines(mapper_id=5)
     image = RomParser.parse(bytes(rom))
     with pytest.raises(UnsupportedMapperError) as exc:
         NESMachine(image)
-    assert exc.value.mapper_id == 3
+    assert exc.value.mapper_id == 5
 
 
 def test_create_machine_four_screen():
