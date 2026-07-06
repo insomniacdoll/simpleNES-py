@@ -28,7 +28,7 @@ def _make_ppu():
     bus = PPUBus(mapper)
     interrupts = InterruptLines()
     ppu = PPU(bus=bus, interrupts=interrupts)
-    ppu.mask = 0x00
+    ppu.write_register(0x2001, 0x00)
     ppu._update_rendering_flags()
     return ppu
 
@@ -40,7 +40,7 @@ def _make_ppu():
 def test_bg_pixel_opacity_tracking():
     """_last_bg_pixel records actual opacity (including left clipping)."""
     ppu = _make_ppu()
-    ppu.mask = 0x0E  # bg on, LEFT CLIPPING enabled (bit 1=1), show sprites
+    ppu.write_register(0x2001, 0x0E)  # bg on, LEFT CLIPPING enabled (bit 1=1), show sprites
     ppu._update_rendering_flags()
     ppu.fine_x = 15  # mux = 0x0001
     ppu.scanline = 0
@@ -62,7 +62,7 @@ def test_bg_pixel_opacity_tracking():
 def test_bg_left_clipping_sets_last_bg_pixel_zero():
     """Left 8px bg clipping OFF: _last_bg_pixel = 0 even if raw pixel != 0."""
     ppu = _make_ppu()
-    ppu.mask = 0x08  # bg on, LEFT CLIPPING OFF (bit 1=0)
+    ppu.write_register(0x2001, 0x08)  # bg on, LEFT CLIPPING OFF (bit 1=0)
     ppu._update_rendering_flags()
     ppu.fine_x = 15
     ppu._bg_shift_lo = 0x0001
@@ -79,7 +79,7 @@ def test_bg_left_clipping_sets_last_bg_pixel_zero():
 def test_sprite_behind_bg_visible_when_bg_left_clipped():
     """Behind-bg sprite visible when bg left-clipped."""
     ppu = _make_ppu()
-    ppu.mask = 0x1C  # bg on, sprites on, bg left OFF (bit1=0), sprite left ON
+    ppu.write_register(0x2001, 0x1C)  # bg on, sprites on, bg left OFF (bit1=0), sprite left ON
     ppu._update_rendering_flags()
     ppu.scanline = 5
     ppu._last_bg_pixel = 0
@@ -126,7 +126,7 @@ def test_sprite_evaluation_8x8():
     """Sprite evaluation fills secondary OAM for next scanline."""
     ppu = _make_ppu()
     ppu.control = 0
-    ppu.mask = 0x18
+    ppu.write_register(0x2001, 0x18)
     ppu._update_rendering_flags()
 
     # Initialize all OAM entries off-screen to avoid false positives
@@ -152,7 +152,7 @@ def test_sprite_evaluation_8x16():
     """8x16 mode: Y=10 visible on scanlines 11-26."""
     ppu = _make_ppu()
     ppu.control = 0x20
-    ppu.mask = 0x18
+    ppu.write_register(0x2001, 0x18)
     ppu._update_rendering_flags()
     ppu.scanline = 25
 
@@ -171,7 +171,7 @@ def test_sprite_overflow():
     """More than 8 sprites → status bit 5."""
     ppu = _make_ppu()
     ppu.control = 0
-    ppu.mask = 0x18
+    ppu.write_register(0x2001, 0x18)
     ppu._update_rendering_flags()
     ppu.scanline = 20
 
@@ -251,7 +251,7 @@ def test_sprite_vertical_flip():
 def test_sprite_composite():
     """Sprite pixel overwrites framebuffer."""
     ppu = _make_ppu()
-    ppu.mask = 0x1E
+    ppu.write_register(0x2001, 0x1E)
     ppu._update_rendering_flags()
     ppu.scanline = 5
     ppu._last_bg_pixel = 1
@@ -275,7 +275,7 @@ def test_sprite_composite():
 def test_sprite_behind_bg_blocks_lower_sprites():
     """High-priority behind-bg sprite blocks lower-priority sprites."""
     ppu = _make_ppu()
-    ppu.mask = 0x1E
+    ppu.write_register(0x2001, 0x1E)
     ppu._update_rendering_flags()
     ppu.scanline = 5
     ppu._last_bg_pixel = 1
@@ -309,7 +309,7 @@ def test_sprite_behind_bg_blocks_lower_sprites():
 def test_sprite_zero_hit():
     """Sprite 0 + opaque bg → status bit 6."""
     ppu = _make_ppu()
-    ppu.mask = 0x1E
+    ppu.write_register(0x2001, 0x1E)
     ppu._update_rendering_flags()
     ppu.scanline = 5
     ppu._last_bg_pixel = 1
@@ -334,7 +334,7 @@ def test_sprite_zero_hit():
 def test_sprite_zero_hit_left_clipping():
     """Left 8px: both bg/sprite left clipping OFF → no hit."""
     ppu = _make_ppu()
-    ppu.mask = 0x18  # bg+sprites on, both left clipping OFF
+    ppu.write_register(0x2001, 0x18)  # bg+sprites on, both left clipping OFF
     ppu._update_rendering_flags()
     ppu.scanline = 5
     ppu._last_bg_pixel = 1
@@ -358,7 +358,7 @@ def test_sprite_zero_hit_left_clipping():
 def test_sprite_zero_hit_x255():
     """No hit at x=255."""
     ppu = _make_ppu()
-    ppu.mask = 0x1E
+    ppu.write_register(0x2001, 0x1E)
     ppu._update_rendering_flags()
     ppu.scanline = 5
     ppu._last_bg_pixel = 1
@@ -380,7 +380,7 @@ def test_sprite_zero_hit_x255():
 def test_sprite_zero_hit_later_pixel():
     """Hit can trigger on later pixel in same scanline."""
     ppu = _make_ppu()
-    ppu.mask = 0x1E
+    ppu.write_register(0x2001, 0x1E)
     ppu._update_rendering_flags()
     ppu.scanline = 5
     ppu._last_bg_pixel = 0
@@ -405,7 +405,7 @@ def test_sprite_zero_hit_later_pixel():
 def test_sprite_zero_hit_when_sprite_behind_background():
     """Behind-bg sprite 0 still triggers hit (checked before priority)."""
     ppu = _make_ppu()
-    ppu.mask = 0x1E
+    ppu.write_register(0x2001, 0x1E)
     ppu._update_rendering_flags()
     ppu.scanline = 5
     ppu._last_bg_pixel = 1
@@ -431,7 +431,7 @@ def test_sprite_zero_hit_when_sprite_behind_background():
 def test_sprite_left_clipping():
     """mask bit 2==0 → sprites invisible in left 8px."""
     ppu = _make_ppu()
-    ppu.mask = 0x18  # sprites on, sprite left clipping OFF
+    ppu.write_register(0x2001, 0x18)  # sprites on, sprite left clipping OFF
     ppu._update_rendering_flags()
     ppu.scanline = 5
     ppu._last_bg_pixel = 1

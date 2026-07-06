@@ -140,7 +140,6 @@ class PPU:
 
     def clock(self) -> None:
         """Advance one PPU dot.  Phase 5: bg + sprite rendering."""
-        self._update_rendering_flags()
 
         # Step 1: visible framebuffer output
         if self.scanline <= 239 and 1 <= self.dot <= 256:
@@ -348,17 +347,17 @@ class PPU:
 
         bg_left_on = fb_x >= 8 or (self.mask & 0x02)
         if not bg_left_on or pixel == 0:
-            palette_idx = self.bus.read(0x3F00) & 0x3F
+            palette_idx = self.bus.peek_palette(0)
             self._last_bg_pixel = 0
         else:
-            palette_idx = self.bus.read(0x3F00 | ((attr << 2) | pixel)) & 0x3F
+            palette_idx = self.bus.peek_palette((attr << 2) | pixel)
             self._last_bg_pixel = pixel
 
         self.framebuffer[self.scanline * 256 + fb_x] = palette_idx
 
     def _output_backdrop_pixel(self, fb_x: int) -> None:
         self.framebuffer[self.scanline * 256 + fb_x] = (
-            self.bus.read(0x3F00) & 0x3F
+            self.bus.peek_palette(0)
         )
         self._last_bg_pixel = 0
 
@@ -502,8 +501,8 @@ class PPU:
             if behind_bg and bg_opaque:
                 return
 
-            palette_idx = self.bus.read(
-                0x3F10 | ((attr & 3) << 2) | pixel
-            ) & 0x3F
+            palette_idx = self.bus.peek_palette(
+                0x10 | ((attr & 3) << 2) | pixel
+            )
             self.framebuffer[self.scanline * 256 + fb_x] = palette_idx
             return

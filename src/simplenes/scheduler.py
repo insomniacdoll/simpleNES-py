@@ -24,10 +24,13 @@ class Scheduler:
         """Execute one complete CPU instruction.
         Returns CPU cycles consumed (including DMA stall cycles)."""
         cycles = self._cpu.step_instruction()
+        ppu = self._ppu
+        apu = self._apu
         for _ in range(cycles):
-            for _ in range(self._timing.ppu_dots_per_cpu_cycle):
-                self._ppu.clock()
-            self._apu.clock_cpu_cycle()
+            ppu.clock()
+            ppu.clock()
+            ppu.clock()
+            apu.clock_cpu_cycle()
 
         dma_cycles = 0
         if self._oam_dma is not None and self._oam_dma.active:

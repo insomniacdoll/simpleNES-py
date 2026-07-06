@@ -26,7 +26,7 @@ def _make_ppu():
     interrupts = InterruptLines()
     ppu = PPU(bus=bus, interrupts=interrupts)
     # Default: rendering off
-    ppu.mask = 0x00
+    ppu.write_register(0x2001, 0x00)
     ppu._update_rendering_flags()
     return ppu
 
@@ -38,7 +38,7 @@ def _make_ppu():
 def test_rendering_disabled_outputs_backdrop():
     """When mask & 0x18 == 0, visible dots output backdrop and v stays put."""
     ppu = _make_ppu()
-    ppu.mask = 0x00  # all off
+    ppu.write_register(0x2001, 0x00)  # all off
     ppu._update_rendering_flags()
     v_before = ppu.v
 
@@ -58,7 +58,7 @@ def test_rendering_disabled_outputs_backdrop():
 def test_rendering_disabled_no_v_increment():
     """_rendering=False → v register does not change after clock()."""
     ppu = _make_ppu()
-    ppu.mask = 0x00
+    ppu.write_register(0x2001, 0x00)
     ppu._update_rendering_flags()
     ppu.v = 0x1234
     v_before = ppu.v
@@ -73,7 +73,7 @@ def test_rendering_disabled_no_v_increment():
 def test_bg_disabled_outputs_backdrop():
     """sprites enabled + bg disabled → visible dots output backdrop."""
     ppu = _make_ppu()
-    ppu.mask = 0x10  # sprites on, bg off → _rendering=True, _bg_enabled=False
+    ppu.write_register(0x2001, 0x10)  # sprites on, bg off → _rendering=True, _bg_enabled=False
     ppu._update_rendering_flags()
     ppu.bus.write(0x3F00, 0x2A)
     backdrop = ppu.bus.read(0x3F00) & 0x3F
@@ -89,7 +89,7 @@ def test_bg_disabled_outputs_backdrop():
 def test_bg_disabled_v_still_increments():
     """sprites enabled + bg disabled → v increments at phase 0 dots."""
     ppu = _make_ppu()
-    ppu.mask = 0x10  # sprites on, bg off → _rendering=True
+    ppu.write_register(0x2001, 0x10)  # sprites on, bg off → _rendering=True
     ppu._update_rendering_flags()
     ppu.v = 0x0000
     v_before = ppu.v
@@ -246,7 +246,7 @@ def test_pixel_output_with_fine_x():
     ppu = _make_ppu()
     ppu.fine_x = 3   # mux = 0x8000 >> 3 = 0x1000
     ppu.scanline = 10
-    ppu.mask = 0x0E  # bg on, no left clipping
+    ppu.write_register(0x2001, 0x0E)  # bg on, no left clipping
 
     # Position data at bit 12 and 13 of shifters (mux = 0x1000 checks bit 12)
     # To hit bit 12, load data into low byte and shift left 4 times
@@ -280,7 +280,7 @@ def test_left_clipping():
     """mask bit 1 == 0 → left 8 pixels use backdrop even with non-zero pixel."""
     ppu = _make_ppu()
     ppu.fine_x = 15  # mux = 0x0001
-    ppu.mask = 0x08  # bg on, LEFT CLIPPING OFF (bit 1=0)
+    ppu.write_register(0x2001, 0x08)  # bg on, LEFT CLIPPING OFF (bit 1=0)
     ppu.scanline = 5
 
     # Put non-zero pixel in shifters so that we'd normally output it
@@ -303,7 +303,7 @@ def test_left_clipping():
 def test_odd_frame_skip():
     """On odd frame, pre-render dot 339 jumps to visible scanline 0 dot 0."""
     ppu = _make_ppu()
-    ppu.mask = 0x08  # rendering enabled
+    ppu.write_register(0x2001, 0x08)  # rendering enabled
     ppu._update_rendering_flags()
     ppu.odd_frame = True
     ppu.scanline = 261

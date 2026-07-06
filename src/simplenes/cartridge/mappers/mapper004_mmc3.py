@@ -15,6 +15,8 @@ class MMC3Mapper:
     - PRG RAM (WRAM) with battery support
     """
 
+    has_ppu_observer = True
+
     __slots__ = (
         "_prg_rom", "_prg_banks",
         "_prg_bank0", "_prg_bank1",

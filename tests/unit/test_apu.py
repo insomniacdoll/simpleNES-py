@@ -419,8 +419,17 @@ def test_apu_reset_clears_state():
     apu.clock_cpu_cycle()
     apu.reset()
     assert not apu._pulse1.length_active
-    assert len(apu._sample_buffer) == 0
+    assert apu._sample_available == 0
     assert apu._cycle_accum == 0.0
     assert apu._sample_sum == 0.0
     assert apu._sample_count == 0
     assert not apu.interrupts.irq_apu_frame
+
+
+def test_apu_read_samples_negative_count_noop():
+    """Negative max_count does not corrupt _sample_available."""
+    apu = _make_apu()
+    apu._push_sample(0.5)
+
+    assert apu.read_samples(-1) == []
+    assert apu._sample_available == 1

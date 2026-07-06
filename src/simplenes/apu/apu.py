@@ -1,7 +1,5 @@
 """APU (Ricoh 2A03 audio). Phase 7: pulse, triangle, noise, frame counter, mixer."""
 
-from collections import deque
-
 from simplenes.apu.frame_counter import FrameCounter
 from simplenes.apu.mixer import mix
 from simplenes.apu.noise import NoiseChannel
@@ -14,11 +12,16 @@ class APU:
     AUDIO_SAMPLE_RATE = 44_100
     CYCLES_PER_SAMPLE = CPU_CLOCK_HZ / AUDIO_SAMPLE_RATE  # ≈ 40.584
 
+    _SAMPLE_BUFFER_SIZE = 4096
+
     __slots__ = (
         "interrupts",
         "_pulse1", "_pulse2", "_triangle", "_noise",
         "_frame_counter",
-        "_sample_buffer",          # deque[float], maxlen=4096
+        "_sample_buffer",          # list[float], pre-allocated 4096
+        "_sample_write",           # int, next write position
+        "_sample_read",            # int, next read position
+        "_sample_available",       # int, currently readable count
         "_cycle_accum", "_sample_sum", "_sample_count",
     )
 
@@ -29,7 +32,10 @@ class APU:
         self._triangle = TriangleChannel()
         self._noise = NoiseChannel()
         self._frame_counter = FrameCounter()
-        self._sample_buffer = deque(maxlen=4096)
+        self._sample_buffer = [0.0] * self._SAMPLE_BUFFER_SIZE
+        self._sample_write = 0
+        self._sample_read = 0
+        self._sample_available = 0
         self._cycle_accum = 0.0
         self._sample_sum = 0.0
         self._sample_count = 0
@@ -76,9 +82,22 @@ class APU:
         if self._cycle_accum >= self.CYCLES_PER_SAMPLE:
             self._cycle_accum -= self.CYCLES_PER_SAMPLE
             if self._sample_count:
-                self._sample_buffer.append(self._sample_sum / self._sample_count)
+                self._push_sample(self._sample_sum / self._sample_count)
             self._sample_sum = 0.0
             self._sample_count = 0
+
+    # ----------------------------------------------------------------
+    # Ring buffer
+    # ----------------------------------------------------------------
+
+    def _push_sample(self, val: float) -> None:
+        """Write one sample.  Overwrites the oldest if full (FIFO drop)."""
+        self._sample_buffer[self._sample_write] = val
+        self._sample_write = (self._sample_write + 1) % self._SAMPLE_BUFFER_SIZE
+        if self._sample_available < self._SAMPLE_BUFFER_SIZE:
+            self._sample_available += 1
+        else:
+            self._sample_read = (self._sample_read + 1) % self._SAMPLE_BUFFER_SIZE
 
     # ----------------------------------------------------------------
     # Register interface (called by CPUBus)
@@ -139,9 +158,16 @@ class APU:
     # ----------------------------------------------------------------
 
     def read_samples(self, max_count: int) -> list[float]:
-        """Consume up to max_count float samples from the buffer."""
-        count = min(max_count, len(self._sample_buffer))
-        return [self._sample_buffer.popleft() for _ in range(count)]
+        """Consume up to *max_count* samples in FIFO order."""
+        count = min(max(0, max_count), self._sample_available)
+        result = [0.0] * count
+        r = self._sample_read
+        for i in range(count):
+            result[i] = self._sample_buffer[r]
+            r = (r + 1) % self._SAMPLE_BUFFER_SIZE
+        self._sample_read = r
+        self._sample_available -= count
+        return result
 
     # ----------------------------------------------------------------
     # State management
@@ -154,7 +180,9 @@ class APU:
         self._triangle.reset()
         self._noise.reset()
         self._frame_counter = FrameCounter()
-        self._sample_buffer.clear()
+        self._sample_write = 0
+        self._sample_read = 0
+        self._sample_available = 0
         self._cycle_accum = 0.0
         self._sample_sum = 0.0
         self._sample_count = 0
