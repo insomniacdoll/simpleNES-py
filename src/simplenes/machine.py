@@ -18,7 +18,7 @@ from simplenes.dma.oam_dma import OAMDMAState
 from simplenes.errors import InvalidRomError, UnsupportedMapperError
 from simplenes.input.controller import Controller
 from simplenes.interrupts import InterruptLines
-from simplenes.ppu.ppu import PPU
+from simplenes.ppu import PPU
 from simplenes.scheduler import Scheduler
 from simplenes.timing import NTSC_TIMING, Region
 

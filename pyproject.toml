@@ -20,7 +20,10 @@ dev = [
     "pytest>=8",
     "ruff>=0.6",
     "pytest-benchmark>=5.2.3",
+    "cython>=3.0",
+    "setuptools>=64",
 ]
+cython = ["cython>=3.0", "setuptools>=64"]
 frontend = [
     "pygame>=2",
 ]

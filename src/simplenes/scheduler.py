@@ -27,9 +27,7 @@ class Scheduler:
         ppu = self._ppu
         apu = self._apu
         for _ in range(cycles):
-            ppu.clock()
-            ppu.clock()
-            ppu.clock()
+            ppu.advance_dots(3)
             apu.clock_cpu_cycle()
 
         dma_cycles = 0
@@ -64,8 +62,7 @@ class Scheduler:
 
         # Tick PPU/APU for DMA duration
         for _ in range(_DMA_CYCLES):
-            for _ in range(self._timing.ppu_dots_per_cpu_cycle):
-                self._ppu.clock()
+            self._ppu.advance_dots(self._timing.ppu_dots_per_cpu_cycle)
             self._apu.clock_cpu_cycle()
 
         return _DMA_CYCLES

@@ -222,16 +222,14 @@ class CPU:
 
         entry = OPCODES[opcode]
 
-        # Read operand bytes from raw memory (for trace only)
-        operand_bytes = tuple(
-            self._read((pc_before + i) & 0xFFFF)
-            for i in range(1, entry.length)
-        )
-
         self._last_pc = pc_before
         self._last_opcode = opcode
 
         if self._trace_logger and self._trace_logger.enabled:
+            operand_bytes = tuple(
+                self._read((pc_before + i) & 0xFFFF)
+                for i in range(1, entry.length)
+            )
             self._trace_logger.capture(
                 self, pc_before, opcode, operand_bytes, entry
             )

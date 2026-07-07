@@ -5,7 +5,7 @@ import pytest
 from simplenes.bus.ppu_bus import PPUBus
 from simplenes.cartridge.image import CartridgeImage, Mirroring, RomFormat
 from simplenes.interrupts import InterruptLines
-from simplenes.ppu.ppu import PPU
+from simplenes.ppu import PPU
 
 
 def _make_nrom_prg() -> bytes:
