@@ -13,7 +13,7 @@ from simplenes.cartridge.mappers.mapper002_uxrom import UxROMMapper
 from simplenes.cartridge.mappers.mapper003_cnrom import CNROMMapper
 from simplenes.cartridge.mappers.mapper001_mmc1 import MMC1Mapper
 from simplenes.cartridge.mappers.mapper004_mmc3 import MMC3Mapper
-from simplenes.cpu.cpu import CPU
+from simplenes.cpu import CPU
 from simplenes.dma.oam_dma import OAMDMAState
 from simplenes.errors import InvalidRomError, UnsupportedMapperError
 from simplenes.input.controller import Controller

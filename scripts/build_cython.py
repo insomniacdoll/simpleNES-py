@@ -15,6 +15,10 @@ extensions = [
         "simplenes.bus._ppu_bus_cy",
         ["src/simplenes/bus/_ppu_bus_cy.pyx"],
     ),
+    Extension(
+        "simplenes.cpu._cpu_cy",
+        ["src/simplenes/cpu/_cpu_cy.pyx"],
+    ),
 ]
 
 setup(
