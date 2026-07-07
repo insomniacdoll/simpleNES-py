@@ -34,7 +34,7 @@ class PPU:
         "_sprite_zero_possible", "_last_bg_pixel",
     )
 
-    def __init__(self, bus, interrupts, *, region=None):
+    def __init__(self, bus, interrupts, *, region=None, palette_cache=None):
         self.bus = bus
         self.interrupts = interrupts
         self.control = 0

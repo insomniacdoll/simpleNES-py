@@ -25,6 +25,7 @@ cdef class PPUCy:
     cdef:
         object bus, interrupts
         object _bus_read, _bus_write, _peek_palette
+        bytearray _palette_cache
         bint _nmi_prev, _rendering, _bg_enabled, _sprite_zero_possible
         int _bg_shift_lo, _bg_shift_hi, _bg_attr_lo, _bg_attr_hi
         int _nt_latch, _at_latch, _pt_lo_latch, _pt_hi_latch
@@ -35,7 +36,7 @@ cdef class PPUCy:
     # __init__ / reset
     # ==================================================================
 
-    def __init__(self, bus, interrupts, *, region=None):
+    def __init__(self, bus, interrupts, region=None, palette_cache=None):
         self.bus = bus
         self.interrupts = interrupts
 
@@ -43,6 +44,7 @@ cdef class PPUCy:
         self._bus_read = bus.read
         self._bus_write = bus.write
         self._peek_palette = bus.peek_palette
+        self._palette_cache = palette_cache  # bytearray(32) for inline peek
 
         self.control = 0
         self.mask = 0
@@ -352,7 +354,21 @@ cdef class PPUCy:
         self._bg_attr_hi = (self._bg_attr_hi & 0xFF00) | attr_hi
 
     # ==================================================================
-    # Phase 4/5: Pixel output (using cached _peek_palette)
+    # Phase 4/5: Fast inline palette peek
+    # ==================================================================
+
+    cdef int _inline_peek(self, int index):
+        """C-level palette bytearray lookup, bypassing Python bound method."""
+        cdef int idx
+        if self._palette_cache is not None:
+            idx = index & 0x1F
+            if idx >= 0x10 and (idx & 3) == 0:
+                idx &= 0x0F
+            return self._palette_cache[idx] & 0x3F
+        return self._peek_palette(index)
+
+    # ==================================================================
+    # Phase 4/5: Pixel output (using inline palette peek)
     # ==================================================================
 
     cdef void _output_background_pixel(self, int fb_x):
@@ -368,16 +384,16 @@ cdef class PPUCy:
         cdef bint bg_left_on = fb_x >= 8 or (self.mask & 0x02)
         cdef int palette_idx
         if not bg_left_on or pixel == 0:
-            palette_idx = self._peek_palette(0)
+            palette_idx = self._inline_peek(0)
             self._last_bg_pixel = 0
         else:
-            palette_idx = self._peek_palette((attr << 2) | pixel)
+            palette_idx = self._inline_peek((attr << 2) | pixel)
             self._last_bg_pixel = pixel
         self.framebuffer[self.scanline * 256 + fb_x] = palette_idx
 
     cdef void _output_backdrop_pixel(self, int fb_x):
         self.framebuffer[self.scanline * 256 + fb_x] = (
-            self._peek_palette(0)
+            self._inline_peek(0)
         )
         self._last_bg_pixel = 0
 
@@ -524,7 +540,7 @@ cdef class PPUCy:
             if behind_bg and bg_opaque:
                 return
 
-            palette_idx = self._peek_palette(
+            palette_idx = self._inline_peek(
                 0x10 | ((attr_v & 3) << 2) | pixel
             )
             self.framebuffer[self.scanline * 256 + fb_x] = palette_idx

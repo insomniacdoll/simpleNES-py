@@ -6,7 +6,7 @@ through NESMachine's public API.
 
 from simplenes.apu.apu import APU
 from simplenes.bus.cpu_bus import CPUBus
-from simplenes.bus.ppu_bus import PPUBus
+from simplenes.bus import PPUBus
 from simplenes.cartridge.image import Mirroring
 from simplenes.cartridge.mappers.mapper000_nrom import NROMMapper
 from simplenes.cartridge.mappers.mapper002_uxrom import UxROMMapper
@@ -46,7 +46,10 @@ class NESMachine:
         self._interrupts = InterruptLines()
         self._mapper = self._create_mapper(cartridge)
         self._ppu_bus = PPUBus(self._mapper)
-        self._ppu = PPU(bus=self._ppu_bus, interrupts=self._interrupts)
+        self._ppu = PPU(
+            bus=self._ppu_bus, interrupts=self._interrupts,
+            palette_cache=self._ppu_bus.get_palette_cache(),
+        )
         self._apu = APU(interrupts=self._interrupts)
         self._controller1 = Controller()
         self._controller2 = Controller()
