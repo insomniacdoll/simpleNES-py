@@ -24,6 +24,9 @@ class PygameFrontend:
         self._title = title
         self._should_close = False
 
+        # macOS: force the process to become a foreground application
+        self._activate_macos_foreground()
+
         import pygame
         self._pg = pygame
         self._pg.init()
@@ -110,6 +113,33 @@ class PygameFrontend:
             pg.K_LEFT:   0x40,   # Left
             pg.K_RIGHT:  0x80,   # Right
         }
+
+    @staticmethod
+    def _activate_macos_foreground():
+        """On macOS, attempt to bring the application to the foreground.
+
+        On modern macOS, SDL2 windows cannot receive keyboard events
+        when launched from a terminal — the user must click the
+        pygame window to give it keyboard focus.
+        """
+        import os
+        import platform
+        import subprocess
+
+        if platform.system() != "Darwin":
+            return
+
+        try:
+            script = (
+                'tell application "System Events" to set frontmost '
+                f"of the first process whose unix id is {os.getpid()} to true"
+            )
+            subprocess.run(
+                ["osascript", "-e", script],
+                capture_output=True, timeout=2,
+            )
+        except Exception:
+            pass  # best-effort
 
 
 def run(machine: NESMachine, frontend: PygameFrontend, *, fps: int = 60) -> None:
