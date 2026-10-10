@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 520" width="1240" height="520"
+     font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
+  <rect width="1240" height="520" fill="#fcfcfb"/>
+
+  <!-- ── Title ───────────────────────────────────────────────── -->
+  <text x="40" y="54" font-size="22" font-weight="600" fill="#0b0b0b">Measured performance — pure Python vs Cython</text>
+  <text x="40" y="82" font-size="13" fill="#52514e">Per-operation means from <tspan font-family="ui-monospace, 'SF Mono', Menlo, monospace" font-size="12">benchmarks/</tspan> · pytest-benchmark · CPython 3.12.13 · Apple Silicon · lower is better in every panel</text>
+
+  <!-- ── Legend ──────────────────────────────────────────────── -->
+  <rect x="40" y="107" width="10" height="10" rx="2" fill="#2a78d6"/>
+  <text x="58" y="116" font-size="11.5" fill="#52514e">Pure Python — reference oracle</text>
+  <rect x="300" y="107" width="10" height="10" rx="2" fill="#eb6834"/>
+  <text x="318" y="116" font-size="11.5" fill="#52514e">Cython — accelerated backend</text>
+
+  <!-- ══ Panel 1 — frame time ══════════════════════════════════ -->
+  <text x="40" y="170" font-size="13" font-weight="600" fill="#0b0b0b">Frame time</text>
+  <text x="40" y="188" font-size="10.5" fill="#898781">ms per frame · run_frame() end to end</text>
+  <text x="405" y="188" font-size="11.5" font-weight="600" fill="#006300" text-anchor="end">1.62× faster</text>
+
+  <line x1="40" y1="388" x2="405" y2="388" stroke="#c3c2b7" stroke-width="1"/>
+  <path d="M106.5,388 L106.5,242 Q106.5,238 110.5,238 L194.5,238 Q198.5,238 198.5,242 L198.5,388 Z" fill="#2a78d6"/>
+  <path d="M246.5,388 L246.5,299.6 Q246.5,295.6 250.5,295.6 L334.5,295.6 Q338.5,295.6 338.5,299.6 L338.5,388 Z" fill="#eb6834"/>
+  <text x="152.5" y="229" font-size="12" font-weight="600" fill="#0b0b0b" text-anchor="middle">35.8 ms</text>
+  <text x="292.5" y="286.6" font-size="12" font-weight="600" fill="#0b0b0b" text-anchor="middle">22.1 ms</text>
+  <text x="152.5" y="406" font-size="10.5" fill="#52514e" text-anchor="middle">Pure Python</text>
+  <text x="292.5" y="406" font-size="10.5" fill="#52514e" text-anchor="middle">Cython</text>
+
+  <!-- ══ Panel 2 — PPU clock, visible scanline ═════════════════ -->
+  <text x="437" y="170" font-size="13" font-weight="600" fill="#0b0b0b">PPU clock — visible scanline</text>
+  <text x="437" y="188" font-size="10.5" fill="#898781">ns per dot · highest-cost PPU path</text>
+  <text x="802" y="188" font-size="11.5" font-weight="600" fill="#006300" text-anchor="end">4.86× faster</text>
+
+  <line x1="437" y1="388" x2="802" y2="388" stroke="#c3c2b7" stroke-width="1"/>
+  <path d="M503.5,388 L503.5,242 Q503.5,238 507.5,238 L591.5,238 Q595.5,238 595.5,242 L595.5,388 Z" fill="#2a78d6"/>
+  <path d="M643.5,388 L643.5,361.1 Q643.5,357.1 647.5,357.1 L731.5,357.1 Q735.5,357.1 735.5,361.1 L735.5,388 Z" fill="#eb6834"/>
+  <text x="549.5" y="229" font-size="12" font-weight="600" fill="#0b0b0b" text-anchor="middle">467 ns</text>
+  <text x="689.5" y="348.1" font-size="12" font-weight="600" fill="#0b0b0b" text-anchor="middle">96 ns</text>
+  <text x="549.5" y="406" font-size="10.5" fill="#52514e" text-anchor="middle">Pure Python</text>
+  <text x="689.5" y="406" font-size="10.5" fill="#52514e" text-anchor="middle">Cython</text>
+
+  <!-- ══ Panel 3 — PPU clock, VBlank ═══════════════════════════ -->
+  <text x="834" y="170" font-size="13" font-weight="600" fill="#0b0b0b">PPU clock — VBlank</text>
+  <text x="834" y="188" font-size="10.5" fill="#898781">ns per dot · idle scanline path</text>
+  <text x="1199" y="188" font-size="11.5" font-weight="600" fill="#006300" text-anchor="end">3.45× faster</text>
+
+  <line x1="834" y1="388" x2="1199" y2="388" stroke="#c3c2b7" stroke-width="1"/>
+  <path d="M900.5,388 L900.5,242 Q900.5,238 904.5,238 L988.5,238 Q992.5,238 992.5,242 L992.5,388 Z" fill="#2a78d6"/>
+  <path d="M1040.5,388 L1040.5,348.5 Q1040.5,344.5 1044.5,344.5 L1128.5,344.5 Q1132.5,344.5 1132.5,348.5 L1132.5,388 Z" fill="#eb6834"/>
+  <text x="946.5" y="229" font-size="12" font-weight="600" fill="#0b0b0b" text-anchor="middle">125 ns</text>
+  <text x="1086.5" y="335.5" font-size="12" font-weight="600" fill="#0b0b0b" text-anchor="middle">36 ns</text>
+  <text x="946.5" y="406" font-size="10.5" fill="#52514e" text-anchor="middle">Pure Python</text>
+  <text x="1086.5" y="406" font-size="10.5" fill="#52514e" text-anchor="middle">Cython</text>
+
+  <!-- ── Footer ──────────────────────────────────────────────── -->
+  <text x="40" y="478" font-size="10.5" fill="#898781">Bars are scaled within each panel; compare across the pair, not across panels. The Cython backend is optional — the pure-Python backend is always a complete, correct emulator on its own.</text>
+</svg>

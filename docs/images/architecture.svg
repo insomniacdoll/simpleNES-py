@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 940" width="1240" height="940"
+     font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
+  <defs>
+    <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 9 5 L 0 8.5 Z" fill="#898781"/>
+    </marker>
+    <marker id="arw-blue" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 9 5 L 0 8.5 Z" fill="#2a78d6"/>
+    </marker>
+    <marker id="arw-orange" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 9 5 L 0 8.5 Z" fill="#eb6834"/>
+    </marker>
+  </defs>
+
+  <rect width="1240" height="940" fill="#fcfcfb"/>
+
+  <!-- ── Title ───────────────────────────────────────────────── -->
+  <text x="40" y="52" font-size="22" font-weight="600" fill="#0b0b0b">simpleNES-py — component architecture</text>
+  <text x="40" y="78" font-size="13" fill="#52514e">One composition root · hardware-accurate module boundaries · two interchangeable execution backends</text>
+
+  <!-- ── Frontends ───────────────────────────────────────────── -->
+  <text x="40" y="124" font-size="10.5" font-weight="600" letter-spacing="1.3" fill="#898781">FRONTENDS — CLIENTS OF THE CORE</text>
+
+  <rect x="40" y="136" width="230" height="56" rx="8" fill="#ffffff" stroke="#0b0b0b" stroke-opacity="0.10"/>
+  <text x="60" y="161" font-size="13.5" font-weight="600" fill="#0b0b0b"
+        font-family="ui-monospace, 'SF Mono', Menlo, monospace">PygameFrontend</text>
+  <text x="60" y="179" font-size="10.5" fill="#898781">window · input · audio</text>
+
+  <rect x="290" y="136" width="230" height="56" rx="8" fill="#ffffff" stroke="#0b0b0b" stroke-opacity="0.10"/>
+  <text x="310" y="161" font-size="13.5" font-weight="600" fill="#0b0b0b"
+        font-family="ui-monospace, 'SF Mono', Menlo, monospace">HeadlessFrontend</text>
+  <text x="310" y="179" font-size="10.5" fill="#898781">CI · traces · benchmarks</text>
+
+  <text x="40" y="216" font-size="10.5" fill="#898781">The core never imports a frontend.</text>
+
+  <line x1="280" y1="196" x2="280" y2="236" stroke="#898781" stroke-width="1.25" marker-end="url(#arw)"/>
+  <text x="292" y="222" font-size="10.5" fill="#898781">frame loop</text>
+
+  <!-- ── NESMachine ──────────────────────────────────────────── -->
+  <rect x="40" y="244" width="1160" height="396" rx="12" fill="#f9f9f7" stroke="#e1e0d9"/>
+  <text x="68" y="278" font-size="15" font-weight="600" fill="#0b0b0b"
+        font-family="ui-monospace, 'SF Mono', Menlo, monospace">NESMachine</text>
+  <text x="68" y="297" font-size="11" fill="#898781">composition root · the only stable public API</text>
+
+  <rect x="68" y="312" width="1104" height="48" rx="8" fill="#ffffff" stroke="#0b0b0b" stroke-opacity="0.10"/>
+  <text x="88" y="341" font-size="11" fill="#52514e"><tspan font-size="13" font-weight="600" fill="#0b0b0b"
+        font-family="ui-monospace, 'SF Mono', Menlo, monospace">Scheduler</tspan> — clock advance · DMA coordination · interrupt timing</text>
+
+  <!-- CPU lane -->
+  <rect x="68" y="384" width="118" height="54" rx="8" fill="#ffffff" stroke="#0b0b0b" stroke-opacity="0.10"/>
+  <text x="127" y="408" font-size="13.5" font-weight="600" fill="#0b0b0b" text-anchor="middle"
+        font-family="ui-monospace, 'SF Mono', Menlo, monospace">CPU</text>
+  <text x="127" y="425" font-size="10" fill="#898781" text-anchor="middle">6502 core</text>
+
+  <line x1="190" y1="411" x2="202" y2="411" stroke="#898781" stroke-width="1.25" marker-end="url(#arw)"/>
+
+  <rect x="206" y="384" width="182" height="54" rx="8" fill="#ffffff" stroke="#0b0b0b" stroke-opacity="0.10"/>
+  <text x="297" y="408" font-size="13.5" font-weight="600" fill="#0b0b0b" text-anchor="middle"
+        font-family="ui-monospace, 'SF Mono', Menlo, monospace">CPUBus</text>
+  <text x="297" y="425" font-size="10" fill="#898781" text-anchor="middle">$0000–$FFFF</text>
+  <text x="206" y="454" font-size="10" fill="#898781">2 KiB RAM · PPU regs · APU regs · controllers</text>
+
+  <!-- PPU lane -->
+  <rect x="68" y="470" width="118" height="54" rx="8" fill="#ffffff" stroke="#0b0b0b" stroke-opacity="0.10"/>
+  <text x="127" y="494" font-size="13.5" font-weight="600" fill="#0b0b0b" text-anchor="middle"
+        font-family="ui-monospace, 'SF Mono', Menlo, monospace">PPU</text>
+  <text x="127" y="511" font-size="10" fill="#898781" text-anchor="middle">rendering pipeline</text>
+
+  <line x1="190" y1="497" x2="202" y2="497" stroke="#898781" stroke-width="1.25" marker-end="url(#arw)"/>
+
+  <rect x="206" y="470" width="182" height="54" rx="8" fill="#ffffff" stroke="#0b0b0b" stroke-opacity="0.10"/>
+  <text x="297" y="494" font-size="13.5" font-weight="600" fill="#0b0b0b" text-anchor="middle"
+        font-family="ui-monospace, 'SF Mono', Menlo, monospace">PPUBus</text>
+  <text x="297" y="511" font-size="10" fill="#898781" text-anchor="middle">$0000–$3FFF</text>
+  <text x="206" y="540" font-size="10" fill="#898781">CHR · nametables · palette</text>
+
+  <!-- APU lane -->
+  <rect x="68" y="556" width="320" height="54" rx="8" fill="#ffffff" stroke="#0b0b0b" stroke-opacity="0.10"/>
+  <text x="88" y="580" font-size="13.5" font-weight="600" fill="#0b0b0b"
+        font-family="ui-monospace, 'SF Mono', Menlo, monospace">APU</text>
+  <text x="88" y="597" font-size="10" fill="#898781">2× pulse · triangle · noise · frame counter · mixer</text>
+
+  <!-- Buses feed the mapper -->
+  <line x1="392" y1="411" x2="632" y2="411" stroke="#898781" stroke-width="1.25" marker-end="url(#arw)"/>
+  <line x1="392" y1="497" x2="632" y2="497" stroke="#898781" stroke-width="1.25" marker-end="url(#arw)"/>
+
+  <!-- Mapper -->
+  <rect x="640" y="384" width="240" height="172" rx="8" fill="#ffffff" stroke="#0b0b0b" stroke-opacity="0.10"/>
+  <text x="760" y="454" font-size="13.5" font-weight="600" fill="#0b0b0b" text-anchor="middle"
+        font-family="ui-monospace, 'SF Mono', Menlo, monospace">Mapper</text>
+  <text x="760" y="475" font-size="10.5" fill="#898781" text-anchor="middle">runtime banking · mirroring · IRQ</text>
+  <text x="760" y="495" font-size="10" fill="#898781" text-anchor="middle">NROM · MMC1 · UxROM · CNROM · MMC3</text>
+
+  <!-- Peripheral chips -->
+  <rect x="932" y="384" width="240" height="54" rx="8" fill="#ffffff" stroke="#0b0b0b" stroke-opacity="0.10"/>
+  <text x="952" y="408" font-size="13" font-weight="600" fill="#0b0b0b"
+        font-family="ui-monospace, 'SF Mono', Menlo, monospace">OAM DMA</text>
+  <text x="952" y="425" font-size="10" fill="#898781">sprite DMA coordinator</text>
+
+  <rect x="932" y="470" width="240" height="54" rx="8" fill="#ffffff" stroke="#0b0b0b" stroke-opacity="0.10"/>
+  <text x="952" y="494" font-size="13" font-weight="600" fill="#0b0b0b"
+        font-family="ui-monospace, 'SF Mono', Menlo, monospace">InterruptLines</text>
+  <text x="952" y="511" font-size="10" fill="#898781">shared NMI / IRQ lines</text>
+
+  <rect x="932" y="556" width="240" height="54" rx="8" fill="#ffffff" stroke="#0b0b0b" stroke-opacity="0.10"/>
+  <text x="952" y="580" font-size="13" font-weight="600" fill="#0b0b0b"
+        font-family="ui-monospace, 'SF Mono', Menlo, monospace">Controller ×2</text>
+  <text x="952" y="597" font-size="10" fill="#898781">strobe protocol</text>
+
+  <!-- ── Cartridge ───────────────────────────────────────────── -->
+  <text x="640" y="676" font-size="10.5" font-weight="600" letter-spacing="1.3" fill="#898781">CARTRIDGE</text>
+
+  <rect x="640" y="688" width="240" height="56" rx="8" fill="#f9f9f7" stroke="#c3c2b7" stroke-dasharray="0"/>
+  <text x="760" y="713" font-size="13" font-weight="600" fill="#0b0b0b" text-anchor="middle"
+        font-family="ui-monospace, 'SF Mono', Menlo, monospace">CartridgeImage</text>
+  <text x="760" y="731" font-size="10" fill="#898781" text-anchor="middle">iNES 1.0 · immutable ROM image</text>
+
+  <line x1="760" y1="688" x2="760" y2="564" stroke="#898781" stroke-width="1.25" marker-end="url(#arw)"/>
+
+  <!-- ── Execution backends ──────────────────────────────────── -->
+  <rect x="40" y="772" width="1160" height="126" rx="12" fill="#f9f9f7" stroke="#e1e0d9"/>
+  <text x="68" y="798" font-size="10.5" font-weight="600" letter-spacing="1.3" fill="#898781">EXECUTION BACKENDS — ONE BEHAVIORAL CONTRACT</text>
+
+  <rect x="68" y="810" width="470" height="56" rx="8" fill="#2a78d6" fill-opacity="0.07"
+        stroke="#2a78d6" stroke-opacity="0.35"/>
+  <rect x="92" y="822" width="10" height="10" rx="2" fill="#2a78d6"/>
+  <text x="112" y="833" font-size="13.5" font-weight="600" fill="#0b0b0b"
+        font-family="ui-monospace, 'SF Mono', Menlo, monospace">Pure Python</text>
+  <text x="112" y="851" font-size="10.5" fill="#52514e">reference oracle · the correctness baseline</text>
+
+  <rect x="702" y="810" width="470" height="56" rx="8" fill="#eb6834" fill-opacity="0.07"
+        stroke="#eb6834" stroke-opacity="0.35"/>
+  <rect x="726" y="822" width="10" height="10" rx="2" fill="#eb6834"/>
+  <text x="746" y="833" font-size="13.5" font-weight="600" fill="#0b0b0b"
+        font-family="ui-monospace, 'SF Mono', Menlo, monospace">Cython</text>
+  <text x="746" y="851" font-size="10.5" fill="#52514e">accelerated PPU · PPUBus · CPU</text>
+
+  <line x1="548" y1="840" x2="694" y2="840" stroke="#898781" stroke-width="1.25"
+        marker-start="url(#arw)" marker-end="url(#arw)"/>
+  <text x="621" y="833" font-size="10.5" fill="#898781" text-anchor="middle">must match</text>
+
+  <text x="68" y="886" font-size="10" fill="#898781"
+        font-family="ui-monospace, 'SF Mono', Menlo, monospace">SIMPLENES_BACKEND = python · cython · auto</text>
+  <text x="1172" y="886" font-size="10.5" fill="#898781" text-anchor="end">Both backends run the same 335-test suite; the Python oracle defines correct behavior.</text>
+</svg>
